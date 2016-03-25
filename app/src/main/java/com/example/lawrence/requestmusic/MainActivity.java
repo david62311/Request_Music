@@ -4,6 +4,7 @@ import android.os.AsyncTask;
 import android.os.Bundle;
 import android.support.design.widget.Snackbar;
 import android.support.v7.app.AppCompatActivity;
+import android.support.v7.widget.SearchView;
 import android.support.v7.widget.Toolbar;
 import android.util.Log;
 import android.view.Menu;
@@ -12,7 +13,6 @@ import android.view.View;
 import android.widget.ArrayAdapter;
 import android.widget.Button;
 import android.widget.ImageButton;
-import android.widget.SearchView;
 import android.widget.Spinner;
 import android.widget.TextView;
 
@@ -47,59 +47,88 @@ public class MainActivity extends AppCompatActivity {
         setSupportActionBar(toolbar);
 
         ImageButton playButton = (ImageButton) findViewById(R.id.playButton);
-        playButton.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View view) {
-                //send a play command to the server
-                try {
-                    if (connected()) outToServer.writeObject("play");
-                } catch (IOException e) {
-                    e.printStackTrace();
+        if (playButton != null) {
+            playButton.setOnClickListener(new View.OnClickListener() {
+                @Override
+                public void onClick(View view) {
+                    //send a play command to the server
+                    try {
+                        if (connected()) outToServer.writeObject("play");
+                    } catch (IOException e) {
+                        e.printStackTrace();
+                    }
+                    Snackbar.make(view, "Playing the song :)", Snackbar.LENGTH_SHORT)
+                            .setAction("Action", null).show();
                 }
-                Snackbar.make(view, "Playing the song :)", Snackbar.LENGTH_SHORT)
-                        .setAction("Action", null).show();
-            }
-        });
+            });
+        }
 
         ImageButton pauseButton = (ImageButton) findViewById(R.id.pauseButton);
-        pauseButton.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View view) {
-                try {
-                    outToServer.writeObject("pause");
-                } catch (IOException e) {
-                    e.printStackTrace();
+        if (pauseButton != null) {
+            pauseButton.setOnClickListener(new View.OnClickListener() {
+                @Override
+                public void onClick(View view) {
+                    try {
+                        outToServer.writeObject("pause");
+                    } catch (IOException e) {
+                        e.printStackTrace();
+                    }
+                    Snackbar.make(view, "Pausing the song :(", Snackbar.LENGTH_SHORT)
+                            .setAction("Action", null).show();
                 }
-                Snackbar.make(view, "Pausing the song :(", Snackbar.LENGTH_SHORT)
-                        .setAction("Action", null).show();
-            }
-        });
+            });
+        }
 
         Button addButton = (Button) findViewById(R.id.addButton);
-        addButton.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View view) {
-                try {
-                    outToServer.writeObject("add");
-                    outToServer.writeObject(searchResults.getSelectedItemPosition());
-                } catch (IOException e) {
-                    e.printStackTrace();
+        if (addButton != null) {
+            addButton.setOnClickListener(new View.OnClickListener() {
+                @Override
+                public void onClick(View view) {
+                    try {
+                        outToServer.writeObject("add");
+                        outToServer.writeObject(searchResults.getSelectedItemPosition());
+                    } catch (IOException e) {
+                        e.printStackTrace();
+                    }
+                    Snackbar.make(view, "added to playlist", Snackbar.LENGTH_SHORT)
+                            .setAction("Action", null).show();
                 }
-                Snackbar.make(view, "added to playlist", Snackbar.LENGTH_SHORT)
-                        .setAction("Action", null).show();
-            }
-        });
+            });
+        }
 
         ImageButton skipButton = (ImageButton) findViewById(R.id.skipButton);
-        skipButton.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View view) {
-                Snackbar.make(view, "skip request sent", Snackbar.LENGTH_SHORT)
-                        .setAction("Action", null).show();
-            }
-        });
+        if (skipButton != null) {
+            skipButton.setOnClickListener(new View.OnClickListener() {
+                @Override
+                public void onClick(View view) {
+                    Snackbar.make(view, "skip request sent", Snackbar.LENGTH_SHORT)
+                            .setAction("Action", null).show();
+                }
+            });
+        }
 
-        final SearchView searchBox = (SearchView) findViewById(R.id.searchView);
+
+        currentlyPlaying = (TextView) findViewById(R.id.textView);
+
+        searchResults = (Spinner) findViewById(R.id.spinner);
+        mSearchResultsAdapter = new ArrayAdapter<>(this, R.layout.support_simple_spinner_dropdown_item, new ArrayList<>(Arrays.asList(results)));
+        searchResults.setAdapter(mSearchResultsAdapter);
+
+
+
+        connectToDJServer("192.168.0.61");
+
+        UpdateTask updateTask = new UpdateTask();
+        updateTask.execute();
+
+
+    }
+
+    @Override
+    public boolean onCreateOptionsMenu(Menu menu) {
+        // Inflate the menu; this adds items to the action bar if it is present.
+        getMenuInflater().inflate(R.menu.menu_main, menu);
+        final SearchView searchBox = (SearchView) menu.findItem(R.id.search).getActionView();
         searchBox.setQueryHint("Search for a song");
         searchBox.setOnQueryTextListener(new SearchView.OnQueryTextListener() {
             @Override
@@ -120,27 +149,6 @@ public class MainActivity extends AppCompatActivity {
                 return false;
             }
         });
-
-        currentlyPlaying = (TextView) findViewById(R.id.textView);
-
-        searchResults = (Spinner) findViewById(R.id.spinner);
-        mSearchResultsAdapter = new ArrayAdapter<String>(this, R.layout.support_simple_spinner_dropdown_item, new ArrayList<String>(Arrays.asList(results)));
-        searchResults.setAdapter(mSearchResultsAdapter);
-
-
-
-        connectToDJServer("192.168.0.61");
-
-        UpdateTask updateTask = new UpdateTask();
-        updateTask.execute();
-
-
-    }
-
-    @Override
-    public boolean onCreateOptionsMenu(Menu menu) {
-        // Inflate the menu; this adds items to the action bar if it is present.
-        getMenuInflater().inflate(R.menu.menu_main, menu);
         return true;
     }
 
@@ -244,9 +252,7 @@ public class MainActivity extends AppCompatActivity {
             try {
                 outToServer.writeObject("curr");
                 return (String) inFromServer.readObject();
-            } catch (IOException e) {
-                e.printStackTrace();
-            } catch (ClassNotFoundException e){
+            } catch (IOException | ClassNotFoundException e) {
                 e.printStackTrace();
             }
             return null;
