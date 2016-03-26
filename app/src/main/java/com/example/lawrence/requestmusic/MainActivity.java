@@ -1,7 +1,9 @@
 package com.example.lawrence.requestmusic;
 
+import android.media.MediaRecorder;
 import android.os.AsyncTask;
 import android.os.Bundle;
+import android.os.Environment;
 import android.support.design.widget.Snackbar;
 import android.support.v7.app.AppCompatActivity;
 import android.support.v7.widget.SearchView;
@@ -16,8 +18,9 @@ import android.widget.ImageButton;
 import android.widget.Spinner;
 import android.widget.TextView;
 
-import com.google.android.gms.common.api.GoogleApiClient;
-
+import java.io.BufferedInputStream;
+import java.io.File;
+import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
@@ -27,13 +30,16 @@ import java.util.Arrays;
 
 public class MainActivity extends AppCompatActivity {
 
-    private final String LOG_TAG = MainActivity.class.getSimpleName();
+    private static final String LOG_TAG = MainActivity.class.getSimpleName();
+    private static String mFilename = Environment.getExternalStorageDirectory().getAbsolutePath().concat("/test.3gp");
+    private MediaRecorder mRecorder = null;
 
-    private GoogleApiClient client;
+
     private Socket serverSocket, currentlyPlayingSocket;
     private ObjectInputStream inFromServer, inFromCurrentlyPlaying;
     private ObjectOutputStream outToServer;
     private boolean connected = false;
+    private boolean recording = false;
     private Spinner searchResults;
     private String[] results = new String[]{"search first by"};
     private ArrayAdapter<String> mSearchResultsAdapter;
@@ -107,6 +113,28 @@ public class MainActivity extends AppCompatActivity {
             });
         }
 
+        final Button recordButton = (Button) findViewById(R.id.recordButton);
+
+        if (recordButton != null) {
+            recordButton.setOnClickListener(new View.OnClickListener() {
+                @Override
+            public void onClick(View view){
+                    if (recording){
+                        recordButton.setText(R.string.record_start);
+                        stopRecording();
+                        sendRecording();
+                        recording = false;
+                    }
+                    else {
+                        recordButton.setText(R.string.record_stop);
+                        startRecording();
+                        recording = true;
+
+                    }
+                }
+            });
+        }
+
 
         currentlyPlaying = (TextView) findViewById(R.id.textView);
 
@@ -160,7 +188,7 @@ public class MainActivity extends AppCompatActivity {
         int id = item.getItemId();
 
         //noinspection SimplifiableIfStatement
-        if (id == R.id.action_settings) {
+        if (id == R.id.action_admin) {
             return true;
         }
 
@@ -213,7 +241,6 @@ public class MainActivity extends AppCompatActivity {
     //handles the connection to the server socket
     public class ConnectTask extends AsyncTask<String, Void, Void> {
 
-        private final String LOG_TAG = ConnectTask.class.getSimpleName();
         @Override
         protected Void doInBackground(String... params){
             if (params.length == 0) return null;
@@ -269,7 +296,6 @@ public class MainActivity extends AppCompatActivity {
     //handles the connection to the server socket
     public class SearchResultsTask extends AsyncTask<Void, Void, String[]> {
 
-        private final String LOG_TAG = SearchResultsTask.class.getSimpleName();
         @Override
         protected String[] doInBackground(Void... params){
             String[] out = new String[1];
@@ -296,6 +322,43 @@ public class MainActivity extends AppCompatActivity {
                 }
                 // New data is back from the server.  Hooray!
             }
+        }
+    }
+
+    private void startRecording() {
+        mRecorder = new MediaRecorder();
+        mRecorder.setAudioSource(MediaRecorder.AudioSource.MIC);
+        mRecorder.setOutputFormat(MediaRecorder.OutputFormat.THREE_GPP);
+        mRecorder.setOutputFile(mFilename);
+        mRecorder.setAudioEncoder(MediaRecorder.AudioEncoder.AAC);
+        try {
+            mRecorder.prepare();
+        } catch (IOException e) {
+            Log.e(LOG_TAG, "prepare() failed");
+        }
+
+        mRecorder.start();
+    }
+
+    private void stopRecording() {
+        mRecorder.stop();
+        mRecorder.release();
+        mRecorder = null;
+    }
+
+    //TODO: make sure it does not go over 10 seconds in length! (check size of file before writing it)
+    private void sendRecording() {
+        try {
+            outToServer.writeObject("message");
+            File output = new File(mFilename);
+            byte[] myByteArray = new byte[(int) output.length()];
+            FileInputStream fis = new FileInputStream(output);
+            BufferedInputStream bis = new BufferedInputStream(fis);
+            //noinspection ResultOfMethodCallIgnored
+            bis.read(myByteArray, 0, myByteArray.length);
+            outToServer.writeObject(myByteArray);
+        } catch (IOException e) {
+            e.printStackTrace();
         }
     }
 

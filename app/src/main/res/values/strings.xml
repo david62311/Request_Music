@@ -3,4 +3,6 @@
     <string name="action_admin">Administrator</string>
     <string name="title_activity_search">SearchActivity</string>
     <string name="search_title">Search</string>
+    <string name="record_stop">Stop Recording</string>
+    <string name="record_start">Record Message</string>
 </resources>
