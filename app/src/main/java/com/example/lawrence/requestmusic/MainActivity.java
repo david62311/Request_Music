@@ -1,5 +1,6 @@
 package com.example.lawrence.requestmusic;
 
+import android.app.DialogFragment;
 import android.media.MediaRecorder;
 import android.os.AsyncTask;
 import android.os.Bundle;
@@ -59,7 +60,7 @@ public class MainActivity extends AppCompatActivity {
                 public void onClick(View view) {
                     //send a play command to the server
                     try {
-                        if (connected()) outToServer.writeObject("play");
+                        if (connected) outToServer.writeObject("play");
                     } catch (IOException e) {
                         e.printStackTrace();
                     }
@@ -144,11 +145,6 @@ public class MainActivity extends AppCompatActivity {
 
 
 
-        connectToDJServer("192.168.0.61");
-
-        UpdateTask updateTask = new UpdateTask();
-        updateTask.execute();
-
 
     }
 
@@ -189,6 +185,9 @@ public class MainActivity extends AppCompatActivity {
 
         //noinspection SimplifiableIfStatement
         if (id == R.id.action_admin) {
+           DialogFragment fragment = new AdminSigninFragment();
+            fragment.show(getFragmentManager(), "test");
+            //startActivity(new Intent(this, AdminActivity.class));
             return true;
         }
 
@@ -199,6 +198,8 @@ public class MainActivity extends AppCompatActivity {
     public void onStart() {
         super.onStart();
         if (!connected) connectToDJServer("192.168.0.61");
+        UpdateTask updateTask = new UpdateTask();
+        updateTask.execute();
 
 
     }
@@ -209,12 +210,15 @@ public class MainActivity extends AppCompatActivity {
         //tells the server to close the socket.
         try {
             outToServer.writeObject("close");
+            inFromServer.close();
+            inFromCurrentlyPlaying.close();
+            outToServer.close();
         } catch (IOException e) {
             e.printStackTrace();
         }
+
         DisconnectTask task = new DisconnectTask();
         task.execute();
-        connected = false;
 
     }
 
@@ -227,16 +231,6 @@ public class MainActivity extends AppCompatActivity {
         SearchResultsTask task = new SearchResultsTask();
         task.execute();
     }
-
-    private boolean connected(){
-        return connected;
-    }
-
-    private void setConnected(boolean bool){
-        connected = bool;
-    }
-
-
 
     //handles the connection to the server socket
     public class ConnectTask extends AsyncTask<String, Void, Void> {
@@ -251,7 +245,7 @@ public class MainActivity extends AppCompatActivity {
                 inFromServer = new ObjectInputStream(serverSocket.getInputStream());
                 outToServer = new ObjectOutputStream(serverSocket.getOutputStream());
                 inFromCurrentlyPlaying = new ObjectInputStream(currentlyPlayingSocket.getInputStream());
-                setConnected(true);
+                connected = true;
             } catch (IOException e) {
                 e.printStackTrace();
             }
@@ -264,6 +258,7 @@ public class MainActivity extends AppCompatActivity {
         @Override
         protected Void doInBackground(Void... params) {
             try {
+                connected = false;
                 serverSocket.close();
                 currentlyPlayingSocket.close();
             } catch (IOException e) {

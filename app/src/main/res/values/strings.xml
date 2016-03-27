@@ -1,8 +1,15 @@
 <resources>
     <string name="app_name">Request Music</string>
-    <string name="action_admin">Administrator</string>
+    <string name="action_admin">Login as Admin</string>
     <string name="title_activity_search">SearchActivity</string>
     <string name="search_title">Search</string>
     <string name="record_stop">Stop Recording</string>
     <string name="record_start">Record Message</string>
+    <string name="title_activity_admin">AdminActivity</string>
+    <string name="password">Admin Password</string>
+    <string name="ok">Sign In</string>
+    <string name="cancel">Cancel</string>
+
+    <!-- TODO: Remove or change this placeholder text -->
+    <string name="hello_blank_fragment">Hello blank fragment</string>
 </resources>
