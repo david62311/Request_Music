@@ -15,7 +15,7 @@ import android.view.MenuItem;
 import android.view.View;
 import android.widget.ArrayAdapter;
 import android.widget.Button;
-import android.widget.ImageButton;
+import android.widget.ListView;
 import android.widget.Spinner;
 import android.widget.TextView;
 
@@ -32,7 +32,7 @@ import java.util.Arrays;
 public class MainActivity extends AppCompatActivity {
 
     private static final String LOG_TAG = MainActivity.class.getSimpleName();
-    private static String mFilename = Environment.getExternalStorageDirectory().getAbsolutePath().concat("/test.3gp");
+    private static String mFilename = Environment.getExternalStorageDirectory().getAbsolutePath().concat("/test.mp3");
     private MediaRecorder mRecorder = null;
 
 
@@ -43,7 +43,7 @@ public class MainActivity extends AppCompatActivity {
     private boolean recording = false;
     private Spinner searchResults;
     private String[] results = new String[]{"search first by"};
-    private ArrayAdapter<String> mSearchResultsAdapter;
+    private ArrayAdapter<String> mSearchResultsAdapter, mPlaylistAdapter;
     private TextView currentlyPlaying;
 
     @Override
@@ -52,39 +52,6 @@ public class MainActivity extends AppCompatActivity {
         setContentView(R.layout.activity_main);
         Toolbar toolbar = (Toolbar) findViewById(R.id.toolbar);
         setSupportActionBar(toolbar);
-
-        ImageButton playButton = (ImageButton) findViewById(R.id.playButton);
-        if (playButton != null) {
-            playButton.setOnClickListener(new View.OnClickListener() {
-                @Override
-                public void onClick(View view) {
-                    //send a play command to the server
-                    try {
-                        if (connected) outToServer.writeObject("play");
-                    } catch (IOException e) {
-                        e.printStackTrace();
-                    }
-                    Snackbar.make(view, "Playing the song :)", Snackbar.LENGTH_SHORT)
-                            .setAction("Action", null).show();
-                }
-            });
-        }
-
-        ImageButton pauseButton = (ImageButton) findViewById(R.id.pauseButton);
-        if (pauseButton != null) {
-            pauseButton.setOnClickListener(new View.OnClickListener() {
-                @Override
-                public void onClick(View view) {
-                    try {
-                        outToServer.writeObject("pause");
-                    } catch (IOException e) {
-                        e.printStackTrace();
-                    }
-                    Snackbar.make(view, "Pausing the song :(", Snackbar.LENGTH_SHORT)
-                            .setAction("Action", null).show();
-                }
-            });
-        }
 
         Button addButton = (Button) findViewById(R.id.addButton);
         if (addButton != null) {
@@ -103,7 +70,7 @@ public class MainActivity extends AppCompatActivity {
             });
         }
 
-        ImageButton skipButton = (ImageButton) findViewById(R.id.skipButton);
+        Button skipButton = (Button) findViewById(R.id.skipButton);
         if (skipButton != null) {
             skipButton.setOnClickListener(new View.OnClickListener() {
                 @Override
@@ -121,6 +88,14 @@ public class MainActivity extends AppCompatActivity {
                 @Override
             public void onClick(View view){
                     if (recording){
+                        //change the button text to make it seem like the system is doing something other than sleeping
+                        recordButton.setText("Sending...");
+                        //sleep the thread in order to not cut off the last part of the recorded message!
+                        try {
+                            Thread.sleep(500);
+                        } catch (InterruptedException e) {
+                            e.printStackTrace();
+                        }
                         recordButton.setText(R.string.record_start);
                         stopRecording();
                         sendRecording();
@@ -144,6 +119,13 @@ public class MainActivity extends AppCompatActivity {
         searchResults.setAdapter(mSearchResultsAdapter);
 
 
+
+        mPlaylistAdapter = new ArrayAdapter<>(this, R.layout.list_item_playlist, R.id.list_item_playlist_textview, new ArrayList<String>());
+
+        ListView playlist = (ListView) findViewById(R.id.listView);
+        if (playlist != null) {
+            playlist.setAdapter(mPlaylistAdapter);
+        }
 
 
     }
@@ -183,12 +165,17 @@ public class MainActivity extends AppCompatActivity {
         // as you specify a parent activity in AndroidManifest.xml.
         int id = item.getItemId();
 
+
+
         //noinspection SimplifiableIfStatement
         if (id == R.id.action_admin) {
            DialogFragment fragment = new AdminSigninFragment();
             fragment.show(getFragmentManager(), "test");
-            //startActivity(new Intent(this, AdminActivity.class));
             return true;
+        }
+
+        else if(id == R.id.refresh){
+            refresh();
         }
 
         return super.onOptionsItemSelected(item);
@@ -232,6 +219,11 @@ public class MainActivity extends AppCompatActivity {
         task.execute();
     }
 
+    private void refresh() {
+        UpdateTask task = new UpdateTask();
+        task.execute();
+    }
+
     //handles the connection to the server socket
     public class ConnectTask extends AsyncTask<String, Void, Void> {
 
@@ -268,22 +260,32 @@ public class MainActivity extends AppCompatActivity {
         }
     }
 
-    public class UpdateTask extends AsyncTask<Void, Void, String> {
+    public class UpdateTask extends AsyncTask<Void, Void, String[]> {
         @Override
-        protected String doInBackground(Void... params) {
+        protected String[] doInBackground(Void... params) {
             try {
-                outToServer.writeObject("curr");
-                return (String) inFromServer.readObject();
+                outToServer.writeObject("playlist");
+                return (String[]) inFromServer.readObject();
             } catch (IOException | ClassNotFoundException e) {
                 e.printStackTrace();
             }
             return null;
         }
         @Override
-        protected void onPostExecute(String result) {
+        protected void onPostExecute(String[] result) {
+            mPlaylistAdapter.clear();
             if (result != null) {
-                currentlyPlaying.setText(result);
+                currentlyPlaying.setText(result[0]);
+
+                for (int i = 1; i < result.length; i++) {
+                    mPlaylistAdapter.add(result[i]);
+                }
+
                 // New data is back from the server.  Hooray!
+            }
+            else {
+                currentlyPlaying.setText("No song currently playing");
+                mPlaylistAdapter.add("Search for and add a song!");
             }
         }
     }
@@ -295,15 +297,9 @@ public class MainActivity extends AppCompatActivity {
         protected String[] doInBackground(Void... params){
             String[] out = new String[1];
             try {
-                Log.v(LOG_TAG, "attempting");
                 out = (String[]) inFromServer.readObject();
-                Log.v(LOG_TAG, Integer.toString(out.length));
-            } catch (IOException e) {
+            } catch (IOException | ClassNotFoundException e) {
                 e.printStackTrace();
-                Log.v(LOG_TAG, "io");
-            } catch (ClassNotFoundException e){
-                e.printStackTrace();
-                Log.v(LOG_TAG, "cnfe");
             }
             return out;
 
@@ -312,8 +308,8 @@ public class MainActivity extends AppCompatActivity {
         protected void onPostExecute(String[] result) {
             if (result != null) {
                 mSearchResultsAdapter.clear();
-                for(String dayForecastStr : result) {
-                    mSearchResultsAdapter.add(dayForecastStr);
+                for(String searchStr : result) {
+                    mSearchResultsAdapter.add(searchStr);
                 }
                 // New data is back from the server.  Hooray!
             }
@@ -323,7 +319,7 @@ public class MainActivity extends AppCompatActivity {
     private void startRecording() {
         mRecorder = new MediaRecorder();
         mRecorder.setAudioSource(MediaRecorder.AudioSource.MIC);
-        mRecorder.setOutputFormat(MediaRecorder.OutputFormat.THREE_GPP);
+        mRecorder.setOutputFormat(MediaRecorder.OutputFormat.AAC_ADTS);
         mRecorder.setOutputFile(mFilename);
         mRecorder.setAudioEncoder(MediaRecorder.AudioEncoder.AAC);
         try {

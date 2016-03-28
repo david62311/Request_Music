@@ -9,7 +9,9 @@
     <string name="password">Admin Password</string>
     <string name="ok">Sign In</string>
     <string name="cancel">Cancel</string>
-
-    <!-- TODO: Remove or change this placeholder text -->
-    <string name="hello_blank_fragment">Hello blank fragment</string>
+    <string name="refresh">Refresh</string>
+    <string name="add_to_playlist">Add to Playlist</string>
+    <string name="record_message">Record Message</string>
+    <string name="system_ip">192.168.0.61</string>
+    <string name="skip_request">Request Skip</string>
 </resources>

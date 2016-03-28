@@ -6,12 +6,15 @@ import android.support.design.widget.Snackbar;
 import android.support.v7.app.AppCompatActivity;
 import android.support.v7.widget.Toolbar;
 import android.view.View;
+import android.widget.ArrayAdapter;
 import android.widget.ImageButton;
+import android.widget.ListView;
 
 import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.net.Socket;
+import java.util.ArrayList;
 
 public class AdminActivity extends AppCompatActivity {
 
@@ -19,6 +22,7 @@ public class AdminActivity extends AppCompatActivity {
     private ObjectInputStream inFromServer, inFromCurrentlyPlaying;
     private ObjectOutputStream outToServer;
     private boolean connected = false;
+    private ArrayAdapter<String> mPlaylistAdapter;
 
 
     @Override
@@ -79,12 +83,21 @@ public class AdminActivity extends AppCompatActivity {
                 }
             });
         }
+
+        mPlaylistAdapter = new ArrayAdapter<>(this, R.layout.list_item_playlist, R.id.list_item_playlist_textview, new ArrayList<String>());
+
+        ListView playlist = (ListView) findViewById(R.id.playlist_view);
+        if (playlist != null) {
+            playlist.setAdapter(mPlaylistAdapter);
+        }
     }
 
     @Override
     public void onStart() {
         super.onStart();
         if (!connected) connectToDJServer("192.168.0.61");
+        UpdateTask task = new UpdateTask();
+        task.execute();
     }
 
     @Override
@@ -143,6 +156,29 @@ public class AdminActivity extends AppCompatActivity {
                 e.printStackTrace();
             }
             return null;
+        }
+    }
+
+    public class UpdateTask extends AsyncTask<Void, Void, String[]> {
+        @Override
+        protected String[] doInBackground(Void... params) {
+            try {
+                outToServer.writeObject("playlist");
+                return (String[]) inFromServer.readObject();
+            } catch (IOException | ClassNotFoundException e) {
+                e.printStackTrace();
+            }
+            return null;
+        }
+        @Override
+        protected void onPostExecute(String[] result) {
+            if (result != null) {
+                mPlaylistAdapter.clear();
+                for (String playlistEntry : result) {
+                    mPlaylistAdapter.add(playlistEntry);
+                }
+                // New data is back from the server.  Hooray!
+            }
         }
     }
 
