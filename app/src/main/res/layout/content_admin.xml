@@ -42,8 +42,32 @@
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:id="@+id/playlist_view"
-        android:layout_below="@+id/admin_play_button"
+        android:layout_below="@+id/progressBar"
         android:layout_centerHorizontal="true"
         android:choiceMode="singleChoice" />
+
+    <ProgressBar
+        style="?android:attr/progressBarStyleHorizontal"
+        android:layout_width="@dimen/progress_width"
+        android:layout_height="wrap_content"
+        android:id="@+id/progressBar"
+        android:layout_below="@+id/admin_play_button"
+        android:layout_centerHorizontal="true"
+        android:indeterminate="false" />
+
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:textAppearance="?android:attr/textAppearanceSmall"
+        android:id="@+id/duration"
+        android:layout_above="@+id/playlist_view"
+        android:layout_toRightOf="@+id/progressBar" />
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:textAppearance="?android:attr/textAppearanceSmall"
+        android:id="@+id/elapsed"
+        android:layout_above="@+id/playlist_view"
+        android:layout_toLeftOf="@+id/progressBar" />
 
 </RelativeLayout>

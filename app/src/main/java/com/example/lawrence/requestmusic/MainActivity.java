@@ -16,6 +16,7 @@ import android.view.View;
 import android.widget.ArrayAdapter;
 import android.widget.Button;
 import android.widget.ListView;
+import android.widget.ProgressBar;
 import android.widget.Spinner;
 import android.widget.TextView;
 
@@ -45,6 +46,8 @@ public class MainActivity extends AppCompatActivity {
     private String[] results = new String[]{"search first by"};
     private ArrayAdapter<String> mSearchResultsAdapter, mPlaylistAdapter;
     private TextView currentlyPlaying;
+    private ProgressBar songProgressBar;
+    private TextView elapsed, duration;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -127,6 +130,10 @@ public class MainActivity extends AppCompatActivity {
             playlist.setAdapter(mPlaylistAdapter);
         }
 
+        songProgressBar = (ProgressBar) findViewById(R.id.mainProgressBar);
+        elapsed = (TextView) findViewById(R.id.mainElapsed);
+        duration = (TextView) findViewById(R.id.mainDuration);
+
 
     }
 
@@ -187,6 +194,8 @@ public class MainActivity extends AppCompatActivity {
         if (!connected) connectToDJServer("192.168.0.61");
         UpdateTask updateTask = new UpdateTask();
         updateTask.execute();
+        ProgressTask progressTask = new ProgressTask();
+        progressTask.execute();
 
 
     }
@@ -353,5 +362,50 @@ public class MainActivity extends AppCompatActivity {
         }
     }
 
+    public class ProgressTask extends AsyncTask<Void, Void, int[]> {
+        @Override
+        protected int[] doInBackground(Void... params) {
+            try {
+                return (int[]) inFromCurrentlyPlaying.readObject();
+            } catch (IOException | ClassNotFoundException e) {
+                e.printStackTrace();
+            }
+            return null;
+        }
+        @Override
+        protected void onPostExecute(int[] result) {
+            int elapsedTime = -1;
+            int durationTime;
+            if (result != null) {
+                durationTime = result[0];
+                elapsedTime = result[1];
+                songProgressBar.setMax(durationTime);
+                songProgressBar.setProgress(elapsedTime);
+                duration.setText(convertTimeToString(durationTime));
+                elapsed.setText(convertTimeToString(elapsedTime));
+
+            }
+            //if elapsedtime is a multiple of 10000 update the playlist info!
+            //this corresponds to 10 second intervals
+            if (elapsedTime % 10000 == 0) {
+                UpdateTask updateTask = new UpdateTask();
+                updateTask.execute();
+            }
+            //rerun this task (if the system is not closed
+            if (connected) {
+                ProgressTask progressTask = new ProgressTask();
+                progressTask.execute();
+            }
+        }
+
+        private String convertTimeToString(int time){
+            int seconds = time / 1000 % 60;
+            int minutes = time / 60000;
+            if (seconds < 10) {
+                return minutes + ":0" + seconds;
+            }
+            return minutes + ":" + seconds;
+        }
+    }
 
 }

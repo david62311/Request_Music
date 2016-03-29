@@ -30,7 +30,7 @@
     <Space
         android:layout_width="40px"
         android:layout_height="20px"
-        android:layout_below="@+id/textView"
+        android:layout_below="@+id/mainProgressBar"
         android:layout_centerHorizontal="true"
         android:id="@+id/space" />
 
@@ -74,5 +74,29 @@
         android:id="@+id/listView"
         android:layout_below="@+id/recordButton"
         android:layout_centerHorizontal="true" />
+
+    <ProgressBar
+        style="?android:attr/progressBarStyleHorizontal"
+        android:layout_width="@dimen/progress_width"
+        android:layout_height="wrap_content"
+        android:id="@+id/mainProgressBar"
+        android:layout_below="@+id/textView"
+        android:layout_centerHorizontal="true"
+        android:indeterminate="false" />
+
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:textAppearance="?android:attr/textAppearanceSmall"
+        android:id="@+id/mainDuration"
+        android:layout_below="@+id/textView"
+        android:layout_toRightOf="@+id/mainProgressBar" />
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:textAppearance="?android:attr/textAppearanceSmall"
+        android:id="@+id/mainElapsed"
+        android:layout_below="@+id/textView"
+        android:layout_toLeftOf="@+id/mainProgressBar" />
 
 </RelativeLayout>

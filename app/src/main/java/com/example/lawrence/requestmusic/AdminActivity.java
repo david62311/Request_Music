@@ -9,6 +9,8 @@ import android.view.View;
 import android.widget.ArrayAdapter;
 import android.widget.ImageButton;
 import android.widget.ListView;
+import android.widget.ProgressBar;
+import android.widget.TextView;
 
 import java.io.IOException;
 import java.io.ObjectInputStream;
@@ -18,11 +20,15 @@ import java.util.ArrayList;
 
 public class AdminActivity extends AppCompatActivity {
 
+    private static final String LOG_TAG = AdminActivity.class.getSimpleName();
     private Socket serverSocket, currentlyPlayingSocket;
     private ObjectInputStream inFromServer, inFromCurrentlyPlaying;
     private ObjectOutputStream outToServer;
     private boolean connected = false;
     private ArrayAdapter<String> mPlaylistAdapter;
+    private ProgressBar songProgressBar;
+    private TextView elapsed, duration;
+
 
 
     @Override
@@ -90,6 +96,10 @@ public class AdminActivity extends AppCompatActivity {
         if (playlist != null) {
             playlist.setAdapter(mPlaylistAdapter);
         }
+
+        songProgressBar = (ProgressBar) findViewById(R.id.progressBar);
+        elapsed = (TextView) findViewById(R.id.elapsed);
+        duration = (TextView) findViewById(R.id.duration);
     }
 
     @Override
@@ -98,6 +108,9 @@ public class AdminActivity extends AppCompatActivity {
         if (!connected) connectToDJServer("192.168.0.61");
         UpdateTask task = new UpdateTask();
         task.execute();
+        ProgressTask progressTask = new ProgressTask();
+        progressTask.execute();
+
     }
 
     @Override
@@ -182,7 +195,49 @@ public class AdminActivity extends AppCompatActivity {
         }
     }
 
+    public class ProgressTask extends AsyncTask<Void, Void, int[]> {
+        @Override
+        protected int[] doInBackground(Void... params) {
+            try {
+                return (int[]) inFromCurrentlyPlaying.readObject();
+            } catch (IOException | ClassNotFoundException e) {
+                e.printStackTrace();
+            }
+            return null;
+        }
+        @Override
+        protected void onPostExecute(int[] result) {
+            int elapsedTime = -1;
+            int durationTime;
+            if (result != null) {
+                durationTime = result[0];
+                elapsedTime = result[1];
+                songProgressBar.setMax(durationTime);
+                songProgressBar.setProgress(elapsedTime);
+                duration.setText(convertTimeToString(durationTime));
+                elapsed.setText(convertTimeToString(elapsedTime));
 
+            }
+            //if elapsedtime is a multiple of 10000 update the playlist info!
+            //this corresponds to 10 second intervals
+            if (elapsedTime % 10000 == 0) {
+                UpdateTask updateTask = new UpdateTask();
+                updateTask.execute();
+            }
+            //rerun this task (if the system is not closed
+            if (connected) {
+                ProgressTask progressTask = new ProgressTask();
+                progressTask.execute();
+            }
+        }
 
-
+        private String convertTimeToString(int time){
+            int seconds = time / 1000 % 60;
+            int minutes = time / 60000;
+            if (seconds < 10) {
+                return minutes + ":0" + seconds;
+            }
+            return minutes + ":" + seconds;
+        }
+    }
 }
