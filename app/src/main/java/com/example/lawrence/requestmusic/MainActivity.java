@@ -33,7 +33,7 @@ import java.util.Arrays;
 public class MainActivity extends AppCompatActivity {
 
     private static final String LOG_TAG = MainActivity.class.getSimpleName();
-    private static String mFilename = Environment.getExternalStorageDirectory().getAbsolutePath().concat("/test.mp3");
+    private static String mFilename = Environment.getExternalStorageDirectory().getAbsolutePath().concat("/test.m4a");
     private MediaRecorder mRecorder = null;
 
 
@@ -42,6 +42,7 @@ public class MainActivity extends AppCompatActivity {
     private ObjectOutputStream outToServer;
     private boolean connected = false;
     private boolean recording = false;
+    private boolean playing = false;
     private Spinner searchResults;
     private String[] results = new String[]{"search first by"};
     private ArrayAdapter<String> mSearchResultsAdapter, mPlaylistAdapter;
@@ -64,6 +65,8 @@ public class MainActivity extends AppCompatActivity {
                     try {
                         outToServer.writeObject("add");
                         outToServer.writeObject(searchResults.getSelectedItemPosition());
+                        UpdateTask task = new UpdateTask();
+                        task.execute();
                     } catch (IOException e) {
                         e.printStackTrace();
                     }
@@ -243,6 +246,7 @@ public class MainActivity extends AppCompatActivity {
             try {
                 serverSocket = new Socket(params[0], 1729);
                 currentlyPlayingSocket = new Socket(params[0], 1729);
+                //currentlyPlayingSocket.setSoTimeout(115); //set a 115ms timeout in order to make the other stuff work on startup :)
                 inFromServer = new ObjectInputStream(serverSocket.getInputStream());
                 outToServer = new ObjectOutputStream(serverSocket.getOutputStream());
                 inFromCurrentlyPlaying = new ObjectInputStream(currentlyPlayingSocket.getInputStream());
@@ -328,12 +332,14 @@ public class MainActivity extends AppCompatActivity {
     private void startRecording() {
         mRecorder = new MediaRecorder();
         mRecorder.setAudioSource(MediaRecorder.AudioSource.MIC);
-        mRecorder.setOutputFormat(MediaRecorder.OutputFormat.AAC_ADTS);
-        mRecorder.setOutputFile(mFilename);
+        mRecorder.setOutputFormat(MediaRecorder.OutputFormat.MPEG_4);
         mRecorder.setAudioEncoder(MediaRecorder.AudioEncoder.AAC);
+        mRecorder.setOutputFile(mFilename);
+
         try {
             mRecorder.prepare();
         } catch (IOException e) {
+            Log.e(LOG_TAG, mFilename);
             Log.e(LOG_TAG, "prepare() failed");
         }
 
@@ -366,7 +372,13 @@ public class MainActivity extends AppCompatActivity {
         @Override
         protected int[] doInBackground(Void... params) {
             try {
-                return (int[]) inFromCurrentlyPlaying.readObject();
+                if(!playing) {
+                    outToServer.writeObject("playing");
+                    playing = (boolean) inFromServer.readObject();
+                }
+                if (playing) {
+                    return (int[]) inFromCurrentlyPlaying.readObject();
+                }
             } catch (IOException | ClassNotFoundException e) {
                 e.printStackTrace();
             }
