@@ -325,6 +325,7 @@ public class MainActivity extends AppCompatActivity {
                     mSearchResultsAdapter.add(searchStr);
                 }
                 // New data is back from the server.  Hooray!
+                searchResults.setSelection(0);
             }
         }
     }
@@ -366,6 +367,8 @@ public class MainActivity extends AppCompatActivity {
         } catch (IOException e) {
             e.printStackTrace();
         }
+        UpdateTask task = new UpdateTask();
+        task.execute();
     }
 
     public class ProgressTask extends AsyncTask<Void, Void, int[]> {
