@@ -1,7 +1,9 @@
 package com.example.lawrence.requestmusic;
 
+import android.content.SharedPreferences;
 import android.os.AsyncTask;
 import android.os.Bundle;
+import android.preference.PreferenceManager;
 import android.support.design.widget.Snackbar;
 import android.support.v7.app.AppCompatActivity;
 import android.support.v7.widget.Toolbar;
@@ -105,7 +107,9 @@ public class AdminActivity extends AppCompatActivity {
     @Override
     public void onStart() {
         super.onStart();
-        if (!connected) connectToDJServer("192.168.0.61");
+        SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(this);
+        String address = prefs.getString(getString(R.string.server_address_key), "1.1.1.1");
+        if (!connected) connectToDJServer(address);
         UpdateTask task = new UpdateTask();
         task.execute();
         ProgressTask progressTask = new ProgressTask();

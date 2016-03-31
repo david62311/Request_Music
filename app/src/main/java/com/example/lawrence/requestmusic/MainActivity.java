@@ -1,10 +1,13 @@
 package com.example.lawrence.requestmusic;
 
 import android.app.DialogFragment;
+import android.content.Intent;
+import android.content.SharedPreferences;
 import android.media.MediaRecorder;
 import android.os.AsyncTask;
 import android.os.Bundle;
 import android.os.Environment;
+import android.preference.PreferenceManager;
 import android.support.design.widget.Snackbar;
 import android.support.v7.app.AppCompatActivity;
 import android.support.v7.widget.SearchView;
@@ -49,6 +52,7 @@ public class MainActivity extends AppCompatActivity {
     private TextView currentlyPlaying;
     private ProgressBar songProgressBar;
     private TextView elapsed, duration;
+    private boolean attemptedSearch = false;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -62,16 +66,18 @@ public class MainActivity extends AppCompatActivity {
             addButton.setOnClickListener(new View.OnClickListener() {
                 @Override
                 public void onClick(View view) {
-                    try {
-                        outToServer.writeObject("add");
-                        outToServer.writeObject(searchResults.getSelectedItemPosition());
-                        UpdateTask task = new UpdateTask();
-                        task.execute();
-                    } catch (IOException e) {
-                        e.printStackTrace();
+                    if (attemptedSearch) {
+                        try {
+                            outToServer.writeObject("add");
+                            outToServer.writeObject(searchResults.getSelectedItemPosition());
+                            UpdateTask task = new UpdateTask();
+                            task.execute();
+                        } catch (IOException e) {
+                            e.printStackTrace();
+                        }
+                        Snackbar.make(view, "added to playlist", Snackbar.LENGTH_SHORT)
+                                .setAction("Action", null).show();
                     }
-                    Snackbar.make(view, "added to playlist", Snackbar.LENGTH_SHORT)
-                            .setAction("Action", null).show();
                 }
             });
         }
@@ -188,13 +194,21 @@ public class MainActivity extends AppCompatActivity {
             refresh();
         }
 
+        else if (id == R.id.action_settings) {
+            startActivity(new Intent(this, SettingsActivity.class));
+            return true;
+        }
+
         return super.onOptionsItemSelected(item);
     }
 
     @Override
     public void onStart() {
         super.onStart();
-        if (!connected) connectToDJServer("192.168.0.61");
+        SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(this);
+        String address = prefs.getString(getString(R.string.server_address_key), "1.1.1.1");
+        if (!connected) connectToDJServer(address);
+
         UpdateTask updateTask = new UpdateTask();
         updateTask.execute();
         ProgressTask progressTask = new ProgressTask();
@@ -212,6 +226,9 @@ public class MainActivity extends AppCompatActivity {
             inFromServer.close();
             inFromCurrentlyPlaying.close();
             outToServer.close();
+            connected = false;
+            attemptedSearch = false;
+            playing = false;
         } catch (IOException e) {
             e.printStackTrace();
         }
@@ -224,6 +241,10 @@ public class MainActivity extends AppCompatActivity {
     private void connectToDJServer(String ip) {
         ConnectTask task = new ConnectTask();
         task.execute(ip);
+    }
+
+    private void checkIfConnected() {
+        if(outToServer == null) startActivity(new Intent(this, SettingsActivity.class));
     }
 
     private void readSearchResults(){
@@ -245,12 +266,14 @@ public class MainActivity extends AppCompatActivity {
 
             try {
                 serverSocket = new Socket(params[0], 1729);
-                currentlyPlayingSocket = new Socket(params[0], 1729);
-                //currentlyPlayingSocket.setSoTimeout(115); //set a 115ms timeout in order to make the other stuff work on startup :)
-                inFromServer = new ObjectInputStream(serverSocket.getInputStream());
-                outToServer = new ObjectOutputStream(serverSocket.getOutputStream());
-                inFromCurrentlyPlaying = new ObjectInputStream(currentlyPlayingSocket.getInputStream());
-                connected = true;
+                if (serverSocket.isConnected()) {
+                    currentlyPlayingSocket = new Socket(params[0], 1729);
+                    //currentlyPlayingSocket.setSoTimeout(115); //set a 115ms timeout in order to make the other stuff work on startup :)
+                    inFromServer = new ObjectInputStream(serverSocket.getInputStream());
+                    outToServer = new ObjectOutputStream(serverSocket.getOutputStream());
+                    inFromCurrentlyPlaying = new ObjectInputStream(currentlyPlayingSocket.getInputStream());
+                    connected = true;
+                }
             } catch (IOException e) {
                 e.printStackTrace();
             }
@@ -263,7 +286,6 @@ public class MainActivity extends AppCompatActivity {
         @Override
         protected Void doInBackground(Void... params) {
             try {
-                connected = false;
                 serverSocket.close();
                 currentlyPlayingSocket.close();
             } catch (IOException e) {
@@ -276,6 +298,7 @@ public class MainActivity extends AppCompatActivity {
     public class UpdateTask extends AsyncTask<Void, Void, String[]> {
         @Override
         protected String[] doInBackground(Void... params) {
+            checkIfConnected();
             try {
                 outToServer.writeObject("playlist");
                 return (String[]) inFromServer.readObject();
@@ -308,6 +331,7 @@ public class MainActivity extends AppCompatActivity {
 
         @Override
         protected String[] doInBackground(Void... params){
+            checkIfConnected();
             String[] out = new String[1];
             try {
                 out = (String[]) inFromServer.readObject();
@@ -326,6 +350,7 @@ public class MainActivity extends AppCompatActivity {
                 }
                 // New data is back from the server.  Hooray!
                 searchResults.setSelection(0);
+                attemptedSearch = true;
             }
         }
     }
@@ -356,6 +381,7 @@ public class MainActivity extends AppCompatActivity {
     //TODO: make sure it does not go over 10 seconds in length! (check size of file before writing it)
     private void sendRecording() {
         try {
+            checkIfConnected();
             outToServer.writeObject("message");
             File output = new File(mFilename);
             byte[] myByteArray = new byte[(int) output.length()];
@@ -374,6 +400,7 @@ public class MainActivity extends AppCompatActivity {
     public class ProgressTask extends AsyncTask<Void, Void, int[]> {
         @Override
         protected int[] doInBackground(Void... params) {
+            checkIfConnected();
             try {
                 if(!playing) {
                     outToServer.writeObject("playing");
