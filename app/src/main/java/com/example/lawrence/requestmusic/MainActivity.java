@@ -47,7 +47,7 @@ public class MainActivity extends AppCompatActivity {
     private boolean recording = false;
     private boolean playing = false;
     private Spinner searchResults;
-    private String[] results = new String[]{"search first by"};
+    private String[] results = new String[]{"Search for a song!"};
     private ArrayAdapter<String> mSearchResultsAdapter, mPlaylistAdapter;
     private TextView currentlyPlaying;
     private ProgressBar songProgressBar;
