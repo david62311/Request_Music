@@ -1,3 +1,15 @@
+/************************************************************
+ * MainActivity for Request Music (tentative title)         *
+ * Main view for the Request Music app                      *
+ * Connects to the specified server                         *
+ * Populates the screen with controls                       *
+ * 															*
+ * by Lawrence Bouzane (inexpensive on github)				*
+ ************************************************************/
+
+/**
+ * Provides the classes necessary to create an Android client to communicate with the DJ Music Manager.
+ */
 package com.example.lawrence.requestmusic;
 
 import android.app.DialogFragment;
@@ -54,22 +66,30 @@ public class MainActivity extends AppCompatActivity {
     private TextView elapsed, duration;
     private boolean attemptedSearch = false;
 
+    /**
+     * Populates the view and sets up action listeners when the Activity is created.
+     * @param savedInstanceState The saved instance state bundle.
+     */
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+        //set the view to the activity_main xml file.
         setContentView(R.layout.activity_main);
         Toolbar toolbar = (Toolbar) findViewById(R.id.toolbar);
         setSupportActionBar(toolbar);
 
+        //add the add to playlist button and set up its action listener
         Button addButton = (Button) findViewById(R.id.addButton);
         if (addButton != null) {
             addButton.setOnClickListener(new View.OnClickListener() {
                 @Override
                 public void onClick(View view) {
+                    //only does something if a search has been attempted.
                     if (attemptedSearch) {
                         try {
                             outToServer.writeObject("add");
                             outToServer.writeObject(searchResults.getSelectedItemPosition());
+                            //update the playlist once the song is added to show the result of the button press!
                             UpdateTask task = new UpdateTask();
                             task.execute();
                         } catch (IOException e) {
@@ -82,17 +102,24 @@ public class MainActivity extends AppCompatActivity {
             });
         }
 
+        //add the skip request button and set up its action listener
         Button skipButton = (Button) findViewById(R.id.skipButton);
         if (skipButton != null) {
             skipButton.setOnClickListener(new View.OnClickListener() {
                 @Override
                 public void onClick(View view) {
+                    try {
+                        outToServer.writeObject("skip");
+                    } catch (IOException e) {
+                        e.printStackTrace();
+                    }
                     Snackbar.make(view, "skip request sent", Snackbar.LENGTH_SHORT)
                             .setAction("Action", null).show();
                 }
             });
         }
 
+        //add the record message button and set up its action listener
         final Button recordButton = (Button) findViewById(R.id.recordButton);
 
         if (recordButton != null) {
@@ -108,12 +135,15 @@ public class MainActivity extends AppCompatActivity {
                         } catch (InterruptedException e) {
                             e.printStackTrace();
                         }
+                        //set text back to the initial state
                         recordButton.setText(R.string.record_start);
+                        //stop and send the recording
                         stopRecording();
                         sendRecording();
                         recording = false;
                     }
                     else {
+                        //set the button to show how to stop the recording and start recording
                         recordButton.setText(R.string.record_stop);
                         startRecording();
                         recording = true;
@@ -124,14 +154,16 @@ public class MainActivity extends AppCompatActivity {
         }
 
 
+        //set up the currently playing TextView
         currentlyPlaying = (TextView) findViewById(R.id.textView);
 
+        //set up the search results Spinner and its adapter
         searchResults = (Spinner) findViewById(R.id.spinner);
         mSearchResultsAdapter = new ArrayAdapter<>(this, R.layout.support_simple_spinner_dropdown_item, new ArrayList<>(Arrays.asList(results)));
         searchResults.setAdapter(mSearchResultsAdapter);
 
 
-
+        //set up the playlist adapter and the playlist ListView
         mPlaylistAdapter = new ArrayAdapter<>(this, R.layout.list_item_playlist, R.id.list_item_playlist_textview, new ArrayList<String>());
 
         ListView playlist = (ListView) findViewById(R.id.listView);
@@ -139,6 +171,7 @@ public class MainActivity extends AppCompatActivity {
             playlist.setAdapter(mPlaylistAdapter);
         }
 
+        //set up the progress bar and TextViews
         songProgressBar = (ProgressBar) findViewById(R.id.mainProgressBar);
         elapsed = (TextView) findViewById(R.id.mainElapsed);
         duration = (TextView) findViewById(R.id.mainDuration);
@@ -146,10 +179,16 @@ public class MainActivity extends AppCompatActivity {
 
     }
 
+    /**
+     * Create the options menu.
+     * @param menu The menu to create.
+     * @return The options menu.
+     */
     @Override
     public boolean onCreateOptionsMenu(Menu menu) {
         // Inflate the menu; this adds items to the action bar if it is present.
         getMenuInflater().inflate(R.menu.menu_main, menu);
+        //add the search button and its action listener
         final SearchView searchBox = (SearchView) menu.findItem(R.id.search).getActionView();
         searchBox.setQueryHint("Search for a song");
         searchBox.setOnQueryTextListener(new SearchView.OnQueryTextListener() {
@@ -174,6 +213,11 @@ public class MainActivity extends AppCompatActivity {
         return true;
     }
 
+    /**
+     * Handles what to do when an options
+     * @param item The selected options item.
+     * @return Whether something has happened.
+     */
     @Override
     public boolean onOptionsItemSelected(MenuItem item) {
         // Handle action bar item clicks here. The action bar will
@@ -182,7 +226,7 @@ public class MainActivity extends AppCompatActivity {
         int id = item.getItemId();
 
 
-
+        //the admin login is pressed -- start the login fragment
         //noinspection SimplifiableIfStatement
         if (id == R.id.action_admin) {
            DialogFragment fragment = new AdminSigninFragment();
@@ -190,10 +234,12 @@ public class MainActivity extends AppCompatActivity {
             return true;
         }
 
+        //refresh is pressed -- refresh the playlist
         else if(id == R.id.refresh){
             refresh();
         }
 
+        //settings is pressed -- open the settings view
         else if (id == R.id.action_settings) {
             startActivity(new Intent(this, SettingsActivity.class));
             return true;
@@ -202,9 +248,13 @@ public class MainActivity extends AppCompatActivity {
         return super.onOptionsItemSelected(item);
     }
 
+    /**
+     * Connect to the server socket on startup.
+     */
     @Override
     public void onStart() {
         super.onStart();
+        //get server IP address from the stored preferences.
         SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(this);
         String address = prefs.getString(getString(R.string.server_address_key), "1.1.1.1");
         if (!connected) connectToDJServer(address);
@@ -217,6 +267,9 @@ public class MainActivity extends AppCompatActivity {
 
     }
 
+    /**
+     * Disconnect from the server when the Activity is stopped.
+     */
     @Override
     public void onStop() {
         super.onStop();
@@ -238,28 +291,48 @@ public class MainActivity extends AppCompatActivity {
 
     }
 
+    /**
+     * Connect to the given IP address via a ConnectTask.
+     * @param ip The server IP.
+     */
     private void connectToDJServer(String ip) {
         ConnectTask task = new ConnectTask();
         task.execute(ip);
     }
 
+    /**
+     * Checks if the system is connected. If it isn't open the settings menu.
+     */
     private void checkIfConnected() {
         if(outToServer == null) startActivity(new Intent(this, SettingsActivity.class));
     }
 
+    /**
+     * Get the search results and put it on the Spinner.
+     */
     private void readSearchResults(){
         SearchResultsTask task = new SearchResultsTask();
         task.execute();
     }
 
+    /**
+     * Refresh the playlist.
+     */
     private void refresh() {
         UpdateTask task = new UpdateTask();
         task.execute();
     }
 
-    //handles the connection to the server socket
+    /**
+     * Handles the connection to the server.
+     */
     public class ConnectTask extends AsyncTask<String, Void, Void> {
 
+        /**
+         * Connect to the given IP.
+         * @param params The server IP.
+         * @return Nothing.
+         */
         @Override
         protected Void doInBackground(String... params){
             if (params.length == 0) return null;
@@ -282,7 +355,15 @@ public class MainActivity extends AppCompatActivity {
         }
     }
 
+    /**
+     * Disconnects from the server.
+     */
     public class DisconnectTask extends AsyncTask<Void, Void, Void> {
+        /**
+         * Disconnect from the server.
+         * @param params Nothing.
+         * @return Nothing.
+         */
         @Override
         protected Void doInBackground(Void... params) {
             try {
@@ -295,7 +376,15 @@ public class MainActivity extends AppCompatActivity {
         }
     }
 
+    /**
+     * Updates the playlist view.
+     */
     public class UpdateTask extends AsyncTask<Void, Void, String[]> {
+        /**
+         * Send a playlist command to the server and gives back the result.
+         * @param params Nothing.
+         * @return A String array containing the playlist details.
+         */
         @Override
         protected String[] doInBackground(Void... params) {
             checkIfConnected();
@@ -307,8 +396,13 @@ public class MainActivity extends AppCompatActivity {
             }
             return null;
         }
+        /**
+         * Update the playlist adapter.
+         * @param result The result from the doInBackground task.
+         */
         @Override
         protected void onPostExecute(String[] result) {
+            //update the playlist adapter
             mPlaylistAdapter.clear();
             if (result != null) {
                 currentlyPlaying.setText(result[0]);
@@ -316,8 +410,6 @@ public class MainActivity extends AppCompatActivity {
                 for (int i = 1; i < result.length; i++) {
                     mPlaylistAdapter.add(result[i]);
                 }
-
-                // New data is back from the server.  Hooray!
             }
             else {
                 currentlyPlaying.setText("No song currently playing");
@@ -326,9 +418,15 @@ public class MainActivity extends AppCompatActivity {
         }
     }
 
-    //handles the connection to the server socket
+    /**
+     * Gets the search results and updates the spinner
+     */
     public class SearchResultsTask extends AsyncTask<Void, Void, String[]> {
-
+        /**
+         * Gets the search results from the server and returns them.
+         * @param params Nothing.
+         * @return A String array containing the search results.
+         */
         @Override
         protected String[] doInBackground(Void... params){
             checkIfConnected();
@@ -341,20 +439,29 @@ public class MainActivity extends AppCompatActivity {
             return out;
 
         }
+
+        /**
+         * Updates the search results spinner
+         * @param result The results from the server.
+         */
         @Override
         protected void onPostExecute(String[] result) {
+            //update the search results Spinner
+            mSearchResultsAdapter.clear();
             if (result != null) {
-                mSearchResultsAdapter.clear();
                 for(String searchStr : result) {
                     mSearchResultsAdapter.add(searchStr);
                 }
-                // New data is back from the server.  Hooray!
+                //set selection to the first result and update the attemptedSearch status.
                 searchResults.setSelection(0);
                 attemptedSearch = true;
             }
         }
     }
 
+    /**
+     * Start recording a message from the microphone as a .m4a file.
+     */
     private void startRecording() {
         mRecorder = new MediaRecorder();
         mRecorder.setAudioSource(MediaRecorder.AudioSource.MIC);
@@ -372,18 +479,24 @@ public class MainActivity extends AppCompatActivity {
         mRecorder.start();
     }
 
+    /**
+     * Stop recording the message and turn off the microphone.
+     */
     private void stopRecording() {
         mRecorder.stop();
         mRecorder.release();
         mRecorder = null;
     }
 
-    //TODO: make sure it does not go over 10 seconds in length! (check size of file before writing it)
+    /**
+     * Send the recorded .m4a to the file as an array of bytes.
+     */
     private void sendRecording() {
         try {
             checkIfConnected();
             outToServer.writeObject("message");
             File output = new File(mFilename);
+            //set up the byte array
             byte[] myByteArray = new byte[(int) output.length()];
             FileInputStream fis = new FileInputStream(output);
             BufferedInputStream bis = new BufferedInputStream(fis);
@@ -397,7 +510,16 @@ public class MainActivity extends AppCompatActivity {
         task.execute();
     }
 
+    /**
+     * Updates the progress bar and TextViews.
+     */
     public class ProgressTask extends AsyncTask<Void, Void, int[]> {
+
+        /**
+         * Get the progress details from the server and return them.
+         * @param params Nothing.
+         * @return An int array containing the relevant details.
+         */
         @Override
         protected int[] doInBackground(Void... params) {
             checkIfConnected();
@@ -414,6 +536,10 @@ public class MainActivity extends AppCompatActivity {
             }
             return null;
         }
+        /**
+         * Update the progress bar and TextViews with results from the server.
+         * @param result The progress information.
+         */
         @Override
         protected void onPostExecute(int[] result) {
             int elapsedTime = -1;
@@ -427,19 +553,24 @@ public class MainActivity extends AppCompatActivity {
                 elapsed.setText(convertTimeToString(elapsedTime));
 
             }
-            //if elapsedtime is a multiple of 10000 update the playlist info!
+            //if elapsedTime is a multiple of 10000 update the playlist info!
             //this corresponds to 10 second intervals
             if (elapsedTime % 10000 == 0) {
                 UpdateTask updateTask = new UpdateTask();
                 updateTask.execute();
             }
-            //rerun this task (if the system is not closed
+            //rerun this task (if the system is not closed)
             if (connected) {
                 ProgressTask progressTask = new ProgressTask();
                 progressTask.execute();
             }
         }
 
+        /**
+         * Converts an integer time into a String readable in the form mm:ss.
+         * @param time The time to be converted.
+         * @return The String formatted time.
+         */
         private String convertTimeToString(int time){
             int seconds = time / 1000 % 60;
             int minutes = time / 60000;

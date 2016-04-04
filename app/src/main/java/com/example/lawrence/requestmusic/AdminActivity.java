@@ -1,3 +1,13 @@
+/************************************************************
+ * AdminActivity for Request Music (tentative title)  		*
+ * view with admin controls for the Request Music app       *
+ * 															*
+ * by Lawrence Bouzane (inexpensive on github)				*
+ ************************************************************/
+
+/**
+ * Provides the classes necessary to create an Android client to communicate with the DJ Music Manager.
+ */
 package com.example.lawrence.requestmusic;
 
 import android.content.SharedPreferences;
@@ -32,10 +42,14 @@ public class AdminActivity extends AppCompatActivity {
     private TextView elapsed, duration;
 
 
-
+    /**
+     * Populates the view and sets up action listeners when the Activity is created.
+     * @param savedInstanceState The saved instance state bundle.
+     */
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+        //set the view to the activity_admin xml file.
         setContentView(R.layout.activity_admin);
         Toolbar toolbar = (Toolbar) findViewById(R.id.toolbar);
         setSupportActionBar(toolbar);
@@ -43,6 +57,7 @@ public class AdminActivity extends AppCompatActivity {
         //noinspection ConstantConditions
         getSupportActionBar().setDisplayHomeAsUpEnabled(true);
 
+        //add the play button and set its action listener.
         ImageButton playButton = (ImageButton) findViewById(R.id.admin_play_button);
         if (playButton != null) {
             playButton.setOnClickListener(new View.OnClickListener() {
@@ -60,6 +75,7 @@ public class AdminActivity extends AppCompatActivity {
             });
         }
 
+        //add the pause button and set its action listener
         ImageButton pauseButton = (ImageButton) findViewById(R.id.admin_pause_button);
         if (pauseButton != null) {
             pauseButton.setOnClickListener(new View.OnClickListener() {
@@ -76,6 +92,7 @@ public class AdminActivity extends AppCompatActivity {
             });
         }
 
+        //add the skip button and set its action listener
         ImageButton skipButton = (ImageButton) findViewById(R.id.admin_skip_button);
         if (skipButton != null) {
             skipButton.setOnClickListener(new View.OnClickListener() {
@@ -92,18 +109,24 @@ public class AdminActivity extends AppCompatActivity {
             });
         }
 
+        //set up the adapter to populate the playlist Listview.
         mPlaylistAdapter = new ArrayAdapter<>(this, R.layout.list_item_playlist, R.id.list_item_playlist_textview, new ArrayList<String>());
 
+        //set up the playlist Listview and set its adapter.
         ListView playlist = (ListView) findViewById(R.id.playlist_view);
         if (playlist != null) {
             playlist.setAdapter(mPlaylistAdapter);
         }
 
+        //set up the progress bar and the text elapsed and durations.
         songProgressBar = (ProgressBar) findViewById(R.id.progressBar);
         elapsed = (TextView) findViewById(R.id.elapsed);
         duration = (TextView) findViewById(R.id.duration);
     }
 
+    /**
+     * Connect to the server once the app's view is created, and update the playlist.
+     */
     @Override
     public void onStart() {
         super.onStart();
@@ -117,6 +140,9 @@ public class AdminActivity extends AppCompatActivity {
 
     }
 
+    /**
+     * close the connection to the server when the app is stopped.
+     */
     @Override
     public void onStop() {
         super.onStop();
@@ -135,14 +161,25 @@ public class AdminActivity extends AppCompatActivity {
 
     }
 
+    /**
+     * Connect to the given IP address via a ConnectTask.
+     * @param ip The server IP.
+     */
     private void connectToDJServer(String ip) {
         ConnectTask task = new ConnectTask();
         task.execute(ip);
     }
 
-    //handles the connection to the server socket
+    /**
+     * Handles the connection to the server.
+     */
     public class ConnectTask extends AsyncTask<String, Void, Void> {
 
+        /**
+         * Connect to the given IP.
+         * @param params The server IP.
+         * @return Nothing.
+         */
         @Override
         protected Void doInBackground(String... params){
             if (params.length == 0) return null;
@@ -162,7 +199,15 @@ public class AdminActivity extends AppCompatActivity {
         }
     }
 
+    /**
+     * Disconnects from the server.
+     */
     public class DisconnectTask extends AsyncTask<Void, Void, Void> {
+        /**
+         * Disconnect from the server.
+         * @param params Nothing.
+         * @return Nothing.
+         */
         @Override
         protected Void doInBackground(Void... params) {
             try {
@@ -176,7 +221,15 @@ public class AdminActivity extends AppCompatActivity {
         }
     }
 
+    /**
+     * Updates the playlist view.
+     */
     public class UpdateTask extends AsyncTask<Void, Void, String[]> {
+        /**
+         * Send a playlist command to the server and gives back the result.
+         * @param params Nothing.
+         * @return A String array containing the playlist details.
+         */
         @Override
         protected String[] doInBackground(Void... params) {
             try {
@@ -187,19 +240,32 @@ public class AdminActivity extends AppCompatActivity {
             }
             return null;
         }
+
+        /**
+         * Update the playlist adapter.
+         * @param result The result from the doInBackground task.
+         */
         @Override
         protected void onPostExecute(String[] result) {
+            //if not null, fill the adapter with the results entries.
             if (result != null) {
                 mPlaylistAdapter.clear();
                 for (String playlistEntry : result) {
                     mPlaylistAdapter.add(playlistEntry);
                 }
-                // New data is back from the server.  Hooray!
             }
         }
     }
 
+    /**
+     * Updates the progress bar and TextViews.
+     */
     public class ProgressTask extends AsyncTask<Void, Void, int[]> {
+        /**
+         * Get the progress details from the server and return them.
+         * @param params Nothing.
+         * @return An int array containing the relevant details.
+         */
         @Override
         protected int[] doInBackground(Void... params) {
             try {
@@ -209,6 +275,11 @@ public class AdminActivity extends AppCompatActivity {
             }
             return null;
         }
+
+        /**
+         * Update the progress bar and TextViews with results from the server.
+         * @param result The progress information.
+         */
         @Override
         protected void onPostExecute(int[] result) {
             int elapsedTime = -1;
@@ -222,19 +293,24 @@ public class AdminActivity extends AppCompatActivity {
                 elapsed.setText(convertTimeToString(elapsedTime));
 
             }
-            //if elapsedtime is a multiple of 10000 update the playlist info!
+            //if elapsedTime is a multiple of 10000 update the playlist info!
             //this corresponds to 10 second intervals
             if (elapsedTime % 10000 == 0) {
                 UpdateTask updateTask = new UpdateTask();
                 updateTask.execute();
             }
-            //rerun this task (if the system is not closed
+            //rerun this task (if the system is not closed)
             if (connected) {
                 ProgressTask progressTask = new ProgressTask();
                 progressTask.execute();
             }
         }
 
+        /**
+         * Converts an integer time into a String readable in the form mm:ss.
+         * @param time The time to be converted.
+         * @return The String formatted time.
+         */
         private String convertTimeToString(int time){
             int seconds = time / 1000 % 60;
             int minutes = time / 60000;

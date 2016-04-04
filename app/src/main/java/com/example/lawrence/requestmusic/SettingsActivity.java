@@ -1,3 +1,14 @@
+/************************************************************
+ * SettingsActivity for Request Music (tentative title)     *
+ * Settings view for the Request Music app                  *
+ * Allows entry of server IP address                        *
+ * 															*
+ * by Lawrence Bouzane (inexpensive on github)				*
+ ************************************************************/
+
+/**
+ * Provides the classes necessary to create an Android client to communicate with the DJ Music Manager.
+ */
 package com.example.lawrence.requestmusic;
 
 
@@ -8,19 +19,15 @@ import android.preference.PreferenceActivity;
 import android.preference.PreferenceManager;
 
 /**
- * A {@link PreferenceActivity} that presents a set of application settings. On
- * handset devices, settings are presented as a single list. On tablets,
- * settings are split by category, with category headers shown to the left of
- * the list of settings.
- * <p/>
- * See <a href="http://developer.android.com/design/patterns/settings.html">
- * Android Design: Settings</a> for design guidelines and the <a
- * href="http://developer.android.com/guide/topics/ui/settings.html">Settings
- * API Guide</a> for more information on developing a Settings UI.
+ * A SettingActivity that starts the settings view for the app to allow entry of a server IP address.
  */
 public class SettingsActivity extends PreferenceActivity
         implements Preference.OnPreferenceChangeListener {
 
+    /**
+     * Creates the Settings view.
+     * @param savedInstanceState The saved instance state bundle.
+     */
     @Override
     public void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -31,6 +38,10 @@ public class SettingsActivity extends PreferenceActivity
         bindPreferenceSummaryToValue(findPreference(getString(R.string.server_address_key)));
     }
 
+    /**
+     * Sets the initial views of the preferences in the Activity.
+     * @param preference The preference to update.
+     */
     private void bindPreferenceSummaryToValue(Preference preference) {
         preference.setOnPreferenceChangeListener(this);
 
@@ -38,6 +49,12 @@ public class SettingsActivity extends PreferenceActivity
     }
 
 
+    /**
+     * Changes the SharedPreferences when a preference value is changed
+     * @param preference The changed preference,
+     * @param value The new value.
+     * @return true,
+     */
     @Override
     public boolean onPreferenceChange(Preference preference, Object value) {
         String stringValue = value.toString();
